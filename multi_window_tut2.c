@@ -58,7 +58,9 @@ typedef struct {
 
 VertexGroup *vg=NULL;
 VertexGroup *vg1=NULL;
+
 GLuint texture;
+GLuint redCross;
 
 // all variables initialized to 1.0, meaning
 // the triangle will initially be white
@@ -68,6 +70,16 @@ float red=1.0f, blue=1.0f, green=1.0f;
 float angle = 0.0f;
 float angle2 = 0.0f;
 
+typedef struct  {
+	float eyeX, eyeY, eyeZ;
+	float centerX, centerY, centerZ;
+	float upX, upY, upZ;
+} Camera;
+
+float translateCar[]= {0,0};
+float mousePos[]= {0,0};
+
+Camera carCamera;
 
 /* --------Car Definition Starts--------*/
 VertexGroup *car_vg=NULL;
@@ -205,11 +217,64 @@ int car_edges[][2] = {
 		{ 9, 32}, // j
 		{ 10, 33}, // k
 		{ 23, 46}, // w
+		{ 22, 45},
 
 		{0,0}
 };
 
+float colors[][4] = {
+		{0,0, 0, 1}, // Midnight Black					0
+		{0,0.2, 0, 1}, // slight green					1
+		{0.1,0.1, 0.2, 1}, // slight blue				2
+		{0.8f, 0.8f, 0.8f, 1.0f}, //quite white,		3
+
+		{0.1,0.1, 0.1, 1}, // Midnight grey					4
+
+};
+
+
+// vertex 1..4, GL_DIFFUSE, GL_AMBIENT, GL_SPECULAR, GL_EMISSION, GL_SHININESS
+int car_faces[][9] = {
+
+	// all the top surfaces
+	{3, 5, 28, 26, 1, 0, 1, 0, 100},
+	{1, 2, 25, 24, 0, 0, 0, 0, 50},
+	{2, 3, 26, 25, 0, 0, 0, 0, 50},
+	{5, 9, 32, 28, 0, 0, 0, 0, 100},
+	{9, 10, 33, 32, 0, 0, 0, 0, 120},
+
+	// side windows
+	{25, 26, 29, 25, 2, 0, 2, 0, 30},
+	{26, 27, 30, 29, 2, 0, 2, 0, 30},
+	{27, 28, 31, 30, 2, 0, 2, 0, 30},
+	{28, 32, 31, 28, 2, 0, 2, 0, 30},
+
+	// the car tire part
+	{23, 24, 25, 34, 4, 0, 0, 0, 10},
+	{34, 25, 29, 35, 4, 0, 0, 0, 10},
+	{35, 29, 36, 35, 4, 0, 0, 0, 10},
+	{29, 36, 37, 38, 4, 0, 0, 0, 10},
+
+	// green part
+	{34, 35, 36, 37, 1, 0, 0, 0, 10},
+
+	// the other parts
+	{29, 38, 40, 31, 4, 0, 0, 0, 10},
+
+	//again to the car tire stuff
+
+
+
+
+
+};
 /* --------Car Definition Ends----------*/
+//
+//float* getNormal(float *v1, float* v2, float* v3,float* v4) {
+//	float x1 = v1
+//
+//}
+
 
 GLuint LoadTexture( const char * filename )
 {
@@ -260,14 +325,14 @@ GLuint LoadTexture( const char * filename )
 	return texture;
 }
 
-void drawStrokeText(char*string,int x,int y,int z)
+void drawStrokeText(char*string,float x,float y,float z)
 {
 	glPushMatrix();
 
-	glLoadIdentity();
-	gluLookAt(	0.0f, 0.0f, 10.0f,
-				1.0f, 1.0f,  1.0f,
-				0.0f, 1.0f,  0.0f);
+//	glLoadIdentity();
+//	gluLookAt(	0.0f, 0.0f, 10.0f,
+//				1.0f, 1.0f,  1.0f,
+//				0.0f, 1.0f,  0.0f);
 
 	glTranslatef(x, y, z);
 	glScalef(0.003f,0.003f,.001);
@@ -281,7 +346,6 @@ void drawStrokeText(char*string,int x,int y,int z)
 
 	glPopMatrix();
 }
-
 
 void allocateMatrix(float ***MATRIX, int noOfRows, int noOfColumns) {
 	float **matrix = *MATRIX = (float **) malloc(sizeof(float *) * noOfRows);
@@ -378,7 +442,6 @@ void multiplyMatGeneral(float **mat1, float **mat2, int row1, int col1, int row2
 void multiplyMat(float **mat1, float **mat2, float **result) {
 	multiplyMatGeneral(mat1, mat2, 4, 4, 4, 4, result);
 }
-
 
 void applyMatrixVertexGroupMatrix(float **mat1, VertexGroup *vg, float **mat2) {
 	/* Don't use, doesn't preserve edges */
@@ -481,7 +544,6 @@ int addEdgeToGroup(VertexGroup *vg, int vertex1, int vertex2) {
 	return 1;
 }
 
-// for newline
 void nl()	{
 	printf("\n");
 }
@@ -517,9 +579,12 @@ void applyMatrixVertexGroup(float **mat1, VertexGroup *vg, VertexGroup *vg2) {
 
 void displayVertexGroup(VertexGroup *vg) {
 	if (vg) {
-		int i, v1, v2;
+		int i = 0, v1, v2;
 		Vertex *a1, *a2;
-		float x, y, z;
+		float x1, y1, z1;
+		float x2, y2, z2;
+		char s[10];
+
 		for (i= 0; i < vg->noOfEdges; i++) {
 			v1 = vg->edges[i][0];
 			v2 = vg->edges[i][1];
@@ -527,19 +592,43 @@ void displayVertexGroup(VertexGroup *vg) {
 			a1 = vg->vertices[v1];
 			a2 = vg->vertices[v2];
 
+			x1 = a1->matrix[0];
+			y1 = a1->matrix[1];
+			z1 = a1->matrix[2];
+
+			x2 = a2->matrix[0];
+			y2 = a2->matrix[1];
+			z2 = a2->matrix[2];
+//
+			glColor3i(0,128, 0);
+			sprintf(s, "%d ", v1);
+			drawStrokeText(s, x1,y1,z1);
+			sprintf(s, "%d ", v2);
+			drawStrokeText(s, x2,y2,z2);
+
+
+			glLineWidth(2);
+//			glColor3f(0,0,0);
+
+			// Draws all edges for Now
 			glBegin(GL_LINE_STRIP);
-
-				x = a1->matrix[0];
-				y = a1->matrix[1];
-				z = a1->matrix[2];
-				glVertex3f(x,y,z);
-				x = a2->matrix[0];
-				y = a2->matrix[1];
-				z = a2->matrix[2];
-				glVertex3f(x,y,z);
-
+				glVertex3f(x1,y1,z1);
+				glVertex3f(x2,y2,z2);
 			glEnd();
+
+
+//			glPushMatrix();
+//			glTranslatef(x,y,z);
+//			glRotatef(angle, 0, 0, 0.7);
+//			glColor3ub(100,128,128);
+//			glBegin(GL_POINTS);
+//			glutSolidSphere(.1,50,50);
+//			glEnd();
+//			glTranslatef(-x,-y,-z);
+//
+//			glPopMatrix();
 		}
+
 	}
 }
 
@@ -550,8 +639,6 @@ void createTransformMatrix(float **mat, float x, float y, float z) {
 	mat[2][3] = z;
 
 }
-
-
 
 void changeSize(int w, int h) {
 
@@ -577,17 +664,55 @@ void changeSize(int w, int h) {
 	glMatrixMode(GL_MODELVIEW);
 }
 
-void renderScene(void) {
+void applyTexture(GLuint txture, float x1, float y1, float z1, float x2, float y2, float z2) {
+	// Render Settings
+	glEnable(GL_TEXTURE_2D);
 
+	glBindTexture(GL_TEXTURE_2D, txture);
+	glTexEnvf( GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE,GL_MODULATE );
+	glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,GL_LINEAR_MIPMAP_NEAREST );
+
+
+	glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER,GL_LINEAR );
+	glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S,GL_REPEAT );
+	glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T,GL_REPEAT );
+
+	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL);
+
+	glBegin(GL_QUADS);
+	// Top Left
+	glTexCoord2f(0, 1); 	glVertex2f(x1, y2);
+	// Top Right
+	glTexCoord2f(1, 1);	glVertex2f(x2, y2);
+	// Bottom Right
+	glTexCoord2f(1, 0);	glVertex2f(x2, y1);
+	// Bottom Left
+	glTexCoord2f(0, 0);	glVertex2f(x1, y1);
+	glEnd();
+	glDisable(GL_TEXTURE_2D);
+}
+
+void renderScene(void) {
 	// Clear Color and Depth Buffers
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glEnable (GL_DEPTH_TEST);   // Enables Depth Testing
+    glEnable (GL_BLEND); glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
+	glColor3f(0,0,0);
 	char *x = "Edwin Clement";
 
-	drawStrokeText(x, 0,-1,0);
+	glLoadIdentity();
+	gluLookAt(	0.0f, 0.0f, 10.0f,
+			0.0f, 0.0f,  0.0f,
+			0.0f, 1.0f,  0.0f);
+	glEnable(GL_LIGHTING);
+	glEnable(GL_LIGHT0);
+	GLfloat lightpos[] = {.5, 1., 1., 0.};
+	glLightfv(GL_LIGHT0, GL_POSITION, lightpos);
 
 
-
+	glMaterialfv(GL_FRONT, GL_DIFFUSE, colors[0]);
+	drawStrokeText(x, -5,3.6,0);
 
 	glLoadIdentity();
 	gluLookAt(	0.0f, 0.0f, 10.0f,
@@ -604,50 +729,66 @@ void renderScene(void) {
 	displayVertexGroup(vg);
 	angle+=0.4f;
 
+
+
+	// The car
 	glLoadIdentity();
-	gluLookAt(	0.0f, 0.0f, 10.0f,
-			1.0f, 1.0f,  1.0f,
-			0.0f, 1.0f,  0.0f);
-
-	glColor3f(.5,0,0);
-	glRotatef(angle, 0.0f, 1.0f, 0.0f);
-
+	gluLookAt(carCamera.eyeX, carCamera.eyeY, carCamera.eyeZ,
+			carCamera.centerX, carCamera.centerY,  carCamera.centerZ,
+			carCamera.upX, carCamera.upY,  carCamera.upZ);
+	glTranslatef(translateCar[0], translateCar[1], 0);
+//	translateCar[0] = 0;
+//	translateCar[1] = 0;
+	glColor3f(0,0,0);
+//	glRotatef(angle, 0.0f, 1.0f, 0.0f);
 	displayVertexGroup(car_vg);
 
- // Render Settings
-	glBindTexture (GL_TEXTURE_2D, texture);
-	glEnable(GL_TEXTURE_2D);
-	glTexEnvi( GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL);
-	glColor3ub(255,255,255);
 
-	glBegin(GL_QUADS);
+	// vertex 1..4, GL_DIFFUSE, GL_AMBIENT, GL_SPECULAR, GL_EMISSION, GL_SHININESS
 
-	// Top Left
-	glTexCoord2f(0, 1);
-	glVertex2f(0,1);
+	// Draw all the surfaces of the car
+	for(int i = 0; i < sizeof(car_faces)/ sizeof(car_faces[0]); i++ ) {
+		glMaterialfv(GL_FRONT, GL_DIFFUSE, colors[car_faces[i][4]]);
+		glMaterialfv(GL_FRONT, GL_AMBIENT, colors[car_faces[i][5]]);
+		glMaterialfv(GL_FRONT, GL_SPECULAR, colors[car_faces[i][6]]);
+		glMaterialfv(GL_FRONT, GL_EMISSION, colors[car_faces[i][7]]);
+		glMaterialfv(GL_FRONT, GL_SHININESS, &car_faces[i][8]);
 
-	// Top Right
-	glTexCoord2f(1, 1);
-	glVertex2f(1, 1);
-
-	// Bottom Right
-	glTexCoord2f(1, 0);
-	glVertex2f(1, 0);
-
-	// Bottom Left
-	glTexCoord2f(0, 0);
-	glVertex2f(0, 0);
-	glEnd();
-	glDisable(GL_TEXTURE_2D);
-
+		glBegin(GL_QUADS);
+		for(int j = 0; j < 4; j++)	{
+				glVertex3fv(car_vg->vertices[car_faces[i][j]]->matrix);
+		}
+		glEnd();
+	}
 
 	glutSwapBuffers();
 }
 
 void processNormalKeys(unsigned char key, int x, int y) {
-
 	if (key == 27)
 		exit(0);
+	switch(key) {
+	case 'q':
+		carCamera.eyeX += 0.1;
+		break;
+	case 'a':
+		carCamera.eyeX -= 0.1;
+		break;
+	case 'w':
+		carCamera.eyeY += 0.1;
+		break;
+	case 's':
+		carCamera.eyeY -= 0.1;
+		break;
+	case 'e':
+		carCamera.eyeZ += 0.1;
+		break;
+	case 'd':
+		carCamera.eyeZ -= 0.1;
+		break;
+
+
+	}
 
 }
 
@@ -704,9 +845,35 @@ void createVertexGroupFromData(VertexGroup **vg1, float vertexes[][3], int v, in
 	}
 }
 
+void processMouseClick(int button, int state, int x, int y) {
+	if (button == GLUT_LEFT_BUTTON) {
+		mousePos[0] = x;
+		mousePos[1] = y;
+	}
+}
+
+void processMouseMotion(int x, int y) {
+	translateCar[0] -= (mousePos[0] - x)/100.0;
+	translateCar[1] += 	(mousePos[1] - y)/100.0;
+
+	mousePos[0] = x;
+	mousePos[1] = y;
+}
 
 int main(int argc, char **argv) {
 	// test texture
+
+
+
+	carCamera.eyeX = 0.0;
+	carCamera.eyeY = 0.0;
+	carCamera.eyeZ = 10.0;
+	carCamera.centerX = 1.0;
+	carCamera.centerY = 1.0;
+	carCamera.centerZ = 1.0;
+	carCamera.upX = 0.0;
+	carCamera.upY = 1.0;
+	carCamera.upZ = 0.0;
 
 
 	VertexGroup *temp, *temp2;
@@ -747,19 +914,25 @@ int main(int argc, char **argv) {
 	glutInitDisplayMode(GLUT_DEPTH | GLUT_DOUBLE | GLUT_RGBA);
 	glutInitWindowPosition(100,100);
 	glutInitWindowSize(1024,728);
-	glutCreateWindow("CG Project - ");
+	glutCreateWindow("CG Project - Edwin");
+	glClearColor(1,1,1,1);
 
 	// register callback
 	glutDisplayFunc(renderScene);
 	glutReshapeFunc(changeSize);
 	glutIdleFunc(renderScene);
 
-	texture= LoadTexture( "texture1.bmp" );
+	texture = LoadTexture("texture1.bmp");
+	texture = redCross = LoadTexture("redCross1.bmp");
+
+
 
 
 	// here are the new entries
 	glutKeyboardFunc(processNormalKeys);
 	glutSpecialFunc(processSpecialKeys);
+	glutMouseFunc(processMouseClick);
+	glutMotionFunc(processMouseMotion);
 
 	// enter GLUT event processing cycle
 	glutMainLoop();
