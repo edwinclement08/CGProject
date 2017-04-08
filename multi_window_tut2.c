@@ -228,7 +228,8 @@ float colors[][4] = {
 		{0.1,0.1, 0.2, 1}, // slight blue				2
 		{0.8f, 0.8f, 0.8f, 1.0f}, //quite white,		3
 
-		{0.1,0.1, 0.1, 1}, // Midnight grey					4
+		{0.1,0.1, 0.1, 1}, // Midnight grey				4
+		{1, 0.2, 0, 1}, // epicaly red					5
 
 };
 
@@ -262,6 +263,31 @@ int car_faces[][9] = {
 	{29, 38, 40, 31, 4, 0, 0, 0, 10},
 
 	//again to the car tire stuff
+	{31, 32, 43, 42, 4, 0, 0, 0, 10},
+	{32, 33, 44, 43, 4, 0, 0, 0, 10},
+	{33, 44, 45, 33, 4, 0, 0, 0, 10},
+	{31, 40, 41, 42, 4, 0, 0, 0, 10},
+
+
+	// the green again
+	{42, 43, 44, 41, 1, 0, 0, 0, 10},
+
+	// right part
+	{33, 10, 22, 45, 4, 0, 0, 0, 10},
+
+	// the left part
+	{0, 1, 24, 23, 4, 0, 0, 0, 10},
+
+	// side windows
+	{2, 3, 5, 9, 2, 0, 2, 0, 30},
+
+
+	// the other side
+	{0, 1, 2, 11,  4, 0, 0, 0, 10},
+	{11, 2, 6, 12,  4, 0, 0, 0, 10},
+	{6, 12, 13, 6,  4, 0, 0, 0, 10},
+	{6, 45, 11, 13,  4, 0, 0, 0, 10},
+
 
 
 
@@ -599,8 +625,9 @@ void displayVertexGroup(VertexGroup *vg) {
 			x2 = a2->matrix[0];
 			y2 = a2->matrix[1];
 			z2 = a2->matrix[2];
-//
-			glColor3i(0,128, 0);
+
+			glMaterialfv(GL_FRONT, GL_DIFFUSE, colors[5]);
+
 			sprintf(s, "%d ", v1);
 			drawStrokeText(s, x1,y1,z1);
 			sprintf(s, "%d ", v2);
@@ -608,7 +635,7 @@ void displayVertexGroup(VertexGroup *vg) {
 
 
 			glLineWidth(2);
-//			glColor3f(0,0,0);
+			glMaterialfv(GL_FRONT, GL_DIFFUSE, colors[5]);
 
 			// Draws all edges for Now
 			glBegin(GL_LINE_STRIP);
@@ -748,11 +775,11 @@ void renderScene(void) {
 
 	// Draw all the surfaces of the car
 	for(int i = 0; i < sizeof(car_faces)/ sizeof(car_faces[0]); i++ ) {
-		glMaterialfv(GL_FRONT, GL_DIFFUSE, colors[car_faces[i][4]]);
-		glMaterialfv(GL_FRONT, GL_AMBIENT, colors[car_faces[i][5]]);
-		glMaterialfv(GL_FRONT, GL_SPECULAR, colors[car_faces[i][6]]);
-		glMaterialfv(GL_FRONT, GL_EMISSION, colors[car_faces[i][7]]);
-		glMaterialfv(GL_FRONT, GL_SHININESS, &car_faces[i][8]);
+		glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, colors[car_faces[i][4]]);
+		glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, colors[car_faces[i][5]]);
+		glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, colors[car_faces[i][6]]);
+		glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, colors[car_faces[i][7]]);
+		glMaterialfv(GL_FRONT_AND_BACK, GL_SHININESS, &car_faces[i][8]);
 
 		glBegin(GL_QUADS);
 		for(int j = 0; j < 4; j++)	{
@@ -924,9 +951,6 @@ int main(int argc, char **argv) {
 
 	texture = LoadTexture("texture1.bmp");
 	texture = redCross = LoadTexture("redCross1.bmp");
-
-
-
 
 	// here are the new entries
 	glutKeyboardFunc(processNormalKeys);
